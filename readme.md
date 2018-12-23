@@ -26,6 +26,7 @@
 
 
 - [x] ** TextCNN模型 **
+
 | 训练数据大小 | batch_size | loss | acc | 运行时间 |
 | - | - | - | - | - |
 | 2.5w | 128 | 0.537 | 0.878 | - |
@@ -33,6 +34,7 @@
 
 - [x] ** TextRNN模型 **
 <font color="red">过拟合：  Train Loss:0.184	Train Accuracy:0.932</font>
+
 | 训练数据大小 | batch_size | loss | acc | 运行时间 |
 | - | - | - | - | - |
 | 2.5w | 128 | 0.417 | 0.843 | - |
@@ -46,6 +48,7 @@ Validation Loss:0.425	Validation Accuracy: 0.824
 - [x] ** TextRCNN模型 **  
 * BiRNN
 <font color="red">不建议考虑该模型</font>
+
 | 训练数据大小 | batch_size | loss | acc | 运行时间 |
 | - | - | - | - | - |
 | 2.5w | 128 | 0.444 | 0.879 | - |
@@ -54,17 +57,20 @@ Validation Loss:0.425	Validation Accuracy: 0.824
 
 ## 4. pytorch实验记录
 - [x] ** fastText模型 **
+
 | 训练数据大小 | batch_size | loss | acc | 运行时间 |
 | - | - | - | - | - |
 | 2.5w | 128 | 0.07620274275541306 | 0.85 | - |
 
 - [x] ** TextCNN模型 **
+
 | 训练数据大小 | batch_size | loss | acc | 运行时间 |
 | - | - | - | - | - |
 | 2.5w | 50 | 0.0011307994136586785 | 0.8 | - |
 
 
 - [x] ** TextRNN模型 **
+
 | 训练数据大小 | batch_size | loss | acc | 运行时间 |
 | - | - | - | - | - |
 | 2.5w | 400 | - | - | - |
