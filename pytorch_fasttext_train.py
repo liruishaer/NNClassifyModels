@@ -223,11 +223,9 @@ def test():
         batch_x = Variable(batch["x"])
         outputs = model(batch_x)
         batch_y = Variable(batch['y'].reshape(1, -1).squeeze(0))
-        # test_loss += binary_loss(outputs, batch_y)
         test_loss += binary_loss(outputs, batch_y).data
 
         prediction = outputs.data.max(1, keepdim=True)[1]
-        # label = batch_y.data.max(1, keepdim=True)[1]
         label = batch['y'].data
         correct += prediction.eq(torch.LongTensor(label)).sum()
 
@@ -239,8 +237,10 @@ def test():
 def train(epoch):
     print('-' * 10)
     print(f'Epoch: {epoch+1}')
-    # for batch in tqdm(training_loader):
+
+    batch_num = 0
     for batch in training_loader:
+        batch_num += 1
         # Get the inputs and wrap as Variables
         batch_x = Variable(batch["x"])
         # batch_y = Variable(batch["y"])
@@ -250,14 +250,17 @@ def train(epoch):
         # forward + backward + optimize
         outputs = model(batch_x)
 
-        # print("outputs.shape:",outputs.shape)
-        # print("batch_y.shape:",batch_y.shape)
-        # print("outputs",outputs)
-        # print("batch_y",batch_y)
-
         loss = binary_loss(outputs, batch_y)
         loss.backward()
         optimizer.step()
+
+        # batch test
+        if batch_num % 10 == 0:
+            prediction = outputs.data.max(1, keepdim=True)[1]
+            label = batch['y'].data
+            correct = prediction.eq(torch.LongTensor(label)).sum()
+            train_acc = correct.float() / len(batch_x)
+            print(f'batch:{batch_num}\ttrain_loss:{loss.data}\ttrain_acc:{train_acc}')
 
 
 
@@ -265,8 +268,8 @@ def train(epoch):
 (x_train, y_train), (x_test, y_test) = lazy_load_imdb_data()
 training_data = MyData(x_train, y_train)
 testing_data = MyData(x_test, y_test)
-training_loader = DataLoader(training_data, batch_size=5)
-testing_loader = DataLoader(testing_data, batch_size=5)
+training_loader = DataLoader(training_data, batch_size=200)
+testing_loader = DataLoader(testing_data, batch_size=200)
 
 
 embedding_matrix = create_glove_embeddings(EMBEDDING_DIMS,MAX_FEATURE)
@@ -278,9 +281,9 @@ binary_loss = nn.CrossEntropyLoss()
 # optimizer = Adagrad(model.parameters(), lr=0.01)
 optimizer = optim.Adam(model.parameters())
 
-n_epochs = 5
+n_epochs = 3
 
 for i in range(n_epochs):
     train(i)
     test()
-test()
+# test()

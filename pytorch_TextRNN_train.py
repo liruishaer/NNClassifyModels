@@ -150,11 +150,12 @@ def train(epoch):
         optimizer.step()
 
         # batch test
-        prediction = outputs.data.max(1, keepdim=True)[1]
-        label = batch['y'].data
-        correct = prediction.eq(torch.LongTensor(label)).sum()
-        train_acc = correct / len(batch_x)
-        print('batch:',batch_num,'\ttrain_loss:',loss.data,'\ttrain_acc:',train_acc)
+        if batch_num % 10==0:
+            prediction = outputs.data.max(1, keepdim=True)[1]
+            label = batch['y'].data
+            correct = prediction.eq(torch.LongTensor(label)).sum()
+            train_acc = 100 * correct.float() / len(batch_x)
+            print(f'batch:{batch_num}\ttrain_loss:{loss.data}\ttrain_acc:{train_acc}')
 
 
 (x_train, y_train), (x_test, y_test) = lazy_load_imdb_data(ngram_range=1, max_features=MAX_FEATURE, sentence_len=SENTENCE_LEN)
@@ -166,7 +167,6 @@ testing_loader = DataLoader(testing_data, batch_size=BATCH_SIZE)
 
 embedding_matrix = create_glove_embeddings(EMBEDDING_DIMS,MAX_FEATURE)
 model = TextRNN(MAX_FEATURE,EMBEDDING_DIMS,HIDDEN_DIM,OUTPUT_DIM,N_LAYERS,BIDIRECTIONAL,DROPOUT)
-# model = TextRNN(BATCH_SIZE,OUTPUT_DIM,HIDDEN_DIM,MAX_FEATURE,EMBEDDING_DIMS)   # model2
 model.embeds.weight.data.copy_(embedding_matrix)
 
 
