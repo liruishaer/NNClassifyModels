@@ -119,8 +119,8 @@ def load_imdb_data(max_feature,ngram_range,sentence_len):
     return (trainX, trainY), (testX, testY)
     # return (trainX, to_categorical(trainY)), (testX, to_categorical(testY))
 
-def lazy_load_imdb_data(ngram_range=1, max_features=20000, maxlen=400):
-    filename = "-".join(["data", str(ngram_range), str(max_features), str(maxlen)])
+def lazy_load_imdb_data(ngram_range=1, max_features=20000, sentence_len=400):
+    filename = "-".join(["data", str(ngram_range), str(max_features), str(sentence_len)])
     filename += ".pkl"
     print(filename)
 
@@ -132,7 +132,7 @@ def lazy_load_imdb_data(ngram_range=1, max_features=20000, maxlen=400):
             return data
     except FileNotFoundError:
         #         data = fetch_imdb_data(ngram_range, max_features, maxlen)
-        data = load_imdb_data()
+        data = load_imdb_data(max_features,ngram_range,sentence_len)
         with open(filename, "wb") as target:
             pkl.dump(data, target)
         return data
@@ -142,4 +142,6 @@ def lazy_load_imdb_data(ngram_range=1, max_features=20000, maxlen=400):
 
 
 
-
+# MAX_FEATURE = 10000
+# SENTENCE_LEN = 250
+# (x_train, y_train), (x_test, y_test) = lazy_load_imdb_data(ngram_range=1, max_features=MAX_FEATURE, sentence_len=SENTENCE_LEN)

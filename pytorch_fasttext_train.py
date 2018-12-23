@@ -17,8 +17,9 @@ import json
 from tqdm import tqdm
 from torch.utils.data import Dataset, DataLoader
 import torch.optim as optim
-from pytorch_fasttext_model import TorchFastText
 from pytorch_imdb_datahandle import lazy_load_imdb_data
+from pytorch_fasttext_model import TorchFastText
+
 
 MAX_FEATURE = 10000
 SENTENCE_LEN = 300
@@ -222,7 +223,8 @@ def test():
         batch_x = Variable(batch["x"])
         outputs = model(batch_x)
         batch_y = Variable(batch['y'].reshape(1, -1).squeeze(0))
-        test_loss += binary_loss(outputs, batch_y)
+        # test_loss += binary_loss(outputs, batch_y)
+        test_loss += binary_loss(outputs, batch_y).data
 
         prediction = outputs.data.max(1, keepdim=True)[1]
         # label = batch_y.data.max(1, keepdim=True)[1]

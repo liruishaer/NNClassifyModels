@@ -17,15 +17,30 @@ import json
 from tqdm import tqdm
 from torch.utils.data import Dataset, DataLoader
 import torch.optim as optim
-from pytorch_fasttext_model import TorchFastText
 from pytorch_imdb_datahandle import lazy_load_imdb_data
-from pytorch_RCNN_model import RCNN
+from pytorch_TextRNN_model2 import TextRNN
+# from pytorch_TextRNN_model import TextRNN
+
 
 MAX_FEATURE = 10000
 SENTENCE_LEN = 300
-NGRAME_RANGE = 1
 EMBEDDING_DIMS = 100
-BATCH_SIZE = 200
+BATCH_SIZE = 400
+NGRAME_RANGE = 1
+N_FILTERS = 100
+FILTER_SIZES = [3,4,5]
+OUTPUT_DIM = 2
+HIDDEN_DIM = 256
+DROPOUT = 0.5
+N_LAYERS = 2
+BIDIRECTIONAL = True
+
+
+USE_CUDA = torch.cuda.is_available()
+# gpus = [0]
+# torch.cuda.set_device(gpus[0])
+
+
 
 
 def create_glove_embeddings(embedding_dims, max_feature):
@@ -81,9 +96,6 @@ class MyData(Dataset):
         return self.y.shape[0]
 
     def __getitem__(self, idx):
-        #         y_i = torch.FloatTensor(self.y[idx, :])
-        #         x_i = torch.LongTensor(self.x[idx].tolist())
-
         y_i = torch.LongTensor([self.y[idx]])
         x_i = torch.LongTensor(self.x[idx].tolist())
 
@@ -108,14 +120,17 @@ def test():
 
     test_loss /= len(testing_loader.dataset)
     accuracy = 100. * correct / len(testing_loader.dataset)
-    print(f'Average Test loss: {test_loss.data[0]}')
+    print(f'Average Test loss: {test_loss}')
     print(f'Accuracy: {accuracy}')
 
 def train(epoch):
+    model.train()
     print('-' * 10)
     print(f'Epoch: {epoch+1}')
-    # for batch in tqdm(training_loader):
+
+    batch_num = 0
     for batch in training_loader:
+        batch_num += 1
         # Get the inputs and wrap as Variables
         batch_x = Variable(batch["x"])
         # batch_y = Variable(batch["y"])
@@ -134,10 +149,15 @@ def train(epoch):
         loss.backward()
         optimizer.step()
 
+        # batch test
+        prediction = outputs.data.max(1, keepdim=True)[1]
+        label = batch['y'].data
+        correct = prediction.eq(torch.LongTensor(label)).sum()
+        train_acc = correct / len(batch_x)
+        print('batch:',batch_num,'\ttrain_loss:',loss.data,'\ttrain_acc:',train_acc)
 
 
-
-(x_train, y_train), (x_test, y_test) = lazy_load_imdb_data()
+(x_train, y_train), (x_test, y_test) = lazy_load_imdb_data(ngram_range=1, max_features=MAX_FEATURE, sentence_len=SENTENCE_LEN)
 training_data = MyData(x_train, y_train)
 testing_data = MyData(x_test, y_test)
 training_loader = DataLoader(training_data, batch_size=BATCH_SIZE)
@@ -145,18 +165,21 @@ testing_loader = DataLoader(testing_data, batch_size=BATCH_SIZE)
 
 
 embedding_matrix = create_glove_embeddings(EMBEDDING_DIMS,MAX_FEATURE)
-model = TorchFastText(MAX_FEATURE, EMBEDDING_DIMS, SENTENCE_LEN)
-model = RCNN()
+model = TextRNN(MAX_FEATURE,EMBEDDING_DIMS,HIDDEN_DIM,OUTPUT_DIM,N_LAYERS,BIDIRECTIONAL,DROPOUT)
+# model = TextRNN(BATCH_SIZE,OUTPUT_DIM,HIDDEN_DIM,MAX_FEATURE,EMBEDDING_DIMS)   # model2
 model.embeds.weight.data.copy_(embedding_matrix)
 
-#binary_loss = nn.BCELoss()
+
+
+
+# if USE_CUDA:
+#     model = model.cuda()
+
 binary_loss = nn.CrossEntropyLoss()
-# optimizer = Adagrad(model.parameters(), lr=0.01)
 optimizer = optim.Adam(model.parameters())
 
-n_epochs = 5
-
+n_epochs = 1
 for i in range(n_epochs):
     train(i)
     test()
-test()
+# test()

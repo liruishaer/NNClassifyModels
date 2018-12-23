@@ -16,7 +16,8 @@ import numpy as np
 
 
 class fastTextB:
-    def __init__(self, label_size, learning_rate, batch_size, decay_steps, decay_rate,num_sampled,sentence_len,vocab_size,embed_size,is_training):
+    def __init__(self, label_size, learning_rate, batch_size, decay_steps, decay_rate,num_sampled,sentence_len,
+                 vocab_size,embed_size,is_training):
         """init all hyperparameter here"""
         # set hyperparamter
         self.label_size = label_size

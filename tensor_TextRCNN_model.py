@@ -4,8 +4,8 @@ import tensorflow as tf
 import numpy as np
 import copy
 class TextRCNN:
-    def __init__(self,num_classes, learning_rate, batch_size, decay_steps, decay_rate,sequence_length,
-                 vocab_size,embed_size,is_training,initializer=tf.random_normal_initializer(stddev=0.1),multi_label_flag=False):
+    def __init__(self,num_classes, learning_rate, decay_steps, decay_rate,sequence_length,
+                 vocab_size,embed_size,is_training,batch_size,initializer=tf.random_normal_initializer(stddev=0.1),multi_label_flag=False):
         """init all hyperparameter here"""
         # set hyperparamter
         self.num_classes = num_classes
@@ -17,7 +17,7 @@ class TextRCNN:
         self.is_training=is_training
         self.learning_rate=learning_rate
         self.initializer=initializer
-        self.activation=tf.nn.tanh
+        self.activation=tf.nn.relu #TODO tf.nn.tanh
         self.multi_label_flag=multi_label_flag
 
         # add placeholder (X,label)
@@ -25,6 +25,7 @@ class TextRCNN:
         self.input_y = tf.placeholder(tf.int32, [None,], name="input_y")  # y:[None,num_classes]
         self.input_y_multilabel = tf.placeholder(tf.float32, [None, self.num_classes], name="input_y_multilabel")  # y:[None,num_classes]. this is for multi-label classification only.
         self.dropout_keep_prob=tf.placeholder(tf.float32,name="dropout_keep_prob")
+        #self.batch_size=tf.placeholder(tf.int32,name="batch_size")
         self.global_step = tf.Variable(0, trainable=False, name="Global_Step")
         self.epoch_step=tf.Variable(0,trainable=False,name="Epoch_Step")
         self.epoch_increment=tf.assign(self.epoch_step,tf.add(self.epoch_step,tf.constant(1)))
@@ -46,34 +47,42 @@ class TextRCNN:
             correct_prediction = tf.equal(tf.cast(self.predictions,tf.int32), self.input_y) #tf.argmax(self.logits, 1)-->[batch_size]
             self.accuracy =tf.reduce_mean(tf.cast(correct_prediction, tf.float32), name="Accuracy") # shape=()
         else:
-            self.accuracy = tf.constant(0.5) #fuke accuracy. (you can calcuate accuracy outside of graph using method calculate_accuracy(...) in train.py)
+            self.accuracy = tf.constant(0.5) #fake accuracy. (you can calcuate accuracy outside of graph using method calculate_accuracy(...) in train.py)
 
     def instantiate_weights(self):
         """define all weights here"""
         with tf.name_scope("weights"): # embedding matrix
             self.Embedding = tf.get_variable("Embedding",shape=[self.vocab_size, self.embed_size],initializer=self.initializer) #[vocab_size,embed_size] tf.random_uniform([self.vocab_size, self.embed_size],-1.0,1.0)
 
-            self.left_side_first_word= tf.get_variable("left_side_first_word",shape=[self.batch_size, self.embed_size],initializer=self.initializer) #TODO
-            self.right_side_last_word = tf.get_variable("right_side_last_word",shape=[self.batch_size, self.embed_size],initializer=self.initializer) #TODO
+            self.left_side_first_word= tf.get_variable("left_side_first_word",shape=[self.batch_size, self.embed_size],initializer=self.initializer) #TODO removed. replaced with zero vector
+            self.right_side_last_word = tf.get_variable("right_side_last_word",shape=[self.batch_size, self.embed_size],initializer=self.initializer) #TODO removed. replaced with zero vector
+            #self.left_side_context_first= tf.get_variable("left_side_context_first",shape=[self.batch_size, self.embed_size],initializer=self.initializer) #TODO removed. replaced with zero vector
+            #self.right_side_context_last=tf.get_variable("right_side_context_last",shape=[self.batch_size, self.embed_size],initializer=self.initializer) #TODO removed. replaced with zero vector
+
             self.W_l=tf.get_variable("W_l",shape=[self.embed_size, self.embed_size],initializer=self.initializer)
             self.W_r=tf.get_variable("W_r",shape=[self.embed_size, self.embed_size],initializer=self.initializer)
             self.W_sl=tf.get_variable("W_sl",shape=[self.embed_size, self.embed_size],initializer=self.initializer)
             self.W_sr=tf.get_variable("W_sr",shape=[self.embed_size, self.embed_size],initializer=self.initializer)
 
+            self.b = tf.get_variable("b", [self.embed_size])
+
             self.W_projection = tf.get_variable("W_projection",shape=[self.hidden_size*3, self.num_classes],initializer=self.initializer) #[embed_size,label_size]
             self.b_projection = tf.get_variable("b_projection",shape=[self.num_classes])       #[label_size]
 
+        #b = tf.get_variable("b", [self.embed_size*3])
+        #h = tf.nn.relu(tf.nn.bias_add(output_conv, b), "relu")
     def get_context_left(self,context_left,embedding_previous):
         """
         :param context_left:
         :param embedding_previous:
         :return: output:[None,embed_size]
         """
-        left_c=tf.matmul(context_left,self.W_l) #context_left:[batch_size,embed_size];W_l:[embed_size,embed_size]
-        left_e=tf.matmul(embedding_previous,self.W_sl)#embedding_previous;[batch_size,embed_size]
-        left_h=left_c+left_e
-        context_left=self.activation(left_h)
-        return context_left
+        left_c=tf.matmul(context_left,self.W_l)       #shape:[batch_size,embed_size]<---------context_left:[batch_size,embed_size];W_l:[embed_size,embed_size]
+        left_e=tf.matmul(embedding_previous,self.W_sl)#shape:[batch_size,embed_size]<---------embedding_previous;[batch_size,embed_size];W_sl:[embed_size, embed_size]
+        left_h=left_c+left_e #shape:[batch_size,embed_size]
+        #context_left=self.activation(left_h) #shape:[batch_size,embed_size] #TODO
+        context_left = tf.nn.relu(tf.nn.bias_add(left_h, self.b), "relu") #TODO
+        return context_left #shape:[batch_size,embed_size]
 
     def get_context_right(self,context_right,embedding_afterward):
         """
@@ -81,11 +90,12 @@ class TextRCNN:
         :param embedding_afterward:
         :return: output:[None,embed_size]
         """
-        right_c=tf.matmul(context_right,self.W_r)
-        right_e=tf.matmul(embedding_afterward,self.W_sr)
-        right_h=right_c+right_e
-        context_right=self.activation(right_h)
-        return context_right
+        right_c=tf.matmul(context_right,self.W_r)        #shape:[batch_size,embed_size]<---------context_right:[batch_size,embed_size];W_r:[embed_size,embed_size]
+        right_e=tf.matmul(embedding_afterward,self.W_sr) #shape:[batch_size,embed_size]<----------embedding_afterward:[batch_size,embed_size];W_sr:[embed_size,embed_size]
+        right_h=right_c+right_e #shape:[batch_size,embed_size]
+        #context_right=self.activation(right_h) #shape:[batch_size,embed_size] #TODO
+        context_right = tf.nn.relu(tf.nn.bias_add(right_h, self.b), "relu") #TODO
+        return context_right #shape:[batch_size,embed_size]
 
     def conv_layer_with_recurrent_structure(self):
         """
@@ -95,8 +105,9 @@ class TextRCNN:
         #1. get splitted list of word embeddings
         embedded_words_split=tf.split(self.embedded_words,self.sequence_length,axis=1) #sentence_length个[None,1,embed_size]
         embedded_words_squeezed=[tf.squeeze(x,axis=1) for x in embedded_words_split]#sentence_length个[None,embed_size]
-        embedding_previous=self.left_side_first_word
-        context_left_previous=tf.zeros((self.batch_size,self.embed_size))
+        embedding_previous=self.left_side_first_word #tf.zeros((self.batch_size,self.embed_size)) #TODO SHOULD WE ASSIGN A VARIABLE HERE
+        context_left_previous=tf.zeros((self.batch_size,self.embed_size)) #self.left_side_context_first# TODO SHOULD WE ASSIGN A VARIABLE HERE
+
         #2. get list of context left
         context_left_list=[]
         for i,current_embedding_word in enumerate(embedded_words_squeezed):#sentence_length个[None,embed_size]
@@ -104,27 +115,27 @@ class TextRCNN:
             context_left_list.append(context_left) #append result to list
             embedding_previous=current_embedding_word #assign embedding_previous
             context_left_previous=context_left #assign context_left_previous
+
         #3. get context right
         embedded_words_squeezed2=copy.copy(embedded_words_squeezed)
         embedded_words_squeezed2.reverse()
-        embedding_afterward=self.right_side_last_word
-        context_right_afterward = tf.zeros((self.batch_size, self.embed_size))
+        embedding_afterward=self.right_side_last_word #tf.zeros((self.batch_size,self.embed_size)) # TODO self.right_side_last_word SHOULD WE ASSIGN A VARIABLE HERE
+        context_right_afterward = tf.zeros((self.batch_size, self.embed_size)) #self.right_side_context_last # TODO SHOULD WE ASSIGN A VARIABLE HERE
         context_right_list=[]
         for j,current_embedding_word in enumerate(embedded_words_squeezed2):
             context_right=self.get_context_right(context_right_afterward,embedding_afterward)
             context_right_list.append(context_right)
             embedding_afterward=current_embedding_word
             context_right_afterward=context_right
-        #4.ensemble left,embedding,right to output
+
+        #4.ensemble "left,embedding,right" to output
         output_list=[]
         for index,current_embedding_word in enumerate(embedded_words_squeezed):
-            representation=tf.concat([context_left_list[index],current_embedding_word,context_right_list[index]],axis=1)
-            #print(i,"representation:",representation)
+            representation=tf.concat([context_left_list[index],current_embedding_word,context_right_list[index]],axis=1) #representation's shape:[None,embed_size*3]
             output_list.append(representation) #shape:sentence_length个[None,embed_size*3]
+
         #5. stack list to a tensor
-        #print("output_list:",output_list) #(3, 5, 8, 100)
         output=tf.stack(output_list,axis=1) #shape:[None,sentence_length,embed_size*3]
-        #print("output:",output)
         return output
 
 
@@ -134,16 +145,18 @@ class TextRCNN:
         self.embedded_words = tf.nn.embedding_lookup(self.Embedding,self.input_x) #shape:[None,sentence_length,embed_size]
         #2. Bi-lstm layer
         output_conv=self.conv_layer_with_recurrent_structure() #shape:[None,sentence_length,embed_size*3]
+        #2.1 apply nolinearity
+        #b = tf.get_variable("b", [self.embed_size*3])
+        #h = tf.nn.relu(tf.nn.bias_add(output_conv, b), "relu")
+
         #3. max pooling
-        #print("output_conv:",output_conv) #(3, 5, 8, 100)
         output_pooling=tf.reduce_max(output_conv,axis=1) #shape:[None,embed_size*3]
-        #print("output_pooling:",output_pooling) #(3, 8, 100)
         #4. logits(use linear layer)
         with tf.name_scope("dropout"):
-            h_drop=tf.nn.dropout(output_pooling,keep_prob=self.dropout_keep_prob) #[None,num_filters_total]
+            h_drop=tf.nn.dropout(output_pooling,keep_prob=self.dropout_keep_prob) #[None,embed_size*3]
 
         with tf.name_scope("output"): #inputs: A `Tensor` of shape `[batch_size, dim]`.  The forward activations of the input network.
-            logits = tf.matmul(h_drop, self.W_projection) + self.b_projection  # [batch_size,num_classes]
+            logits = tf.matmul(h_drop, self.W_projection) + self.b_projection  #shape:[batch_size,num_classes]<-----h_drop:[None,embed_size*3];b_projection:[hidden_size*3, self.num_classes]
         return logits
 
     def loss(self,l2_lambda=0.0001):#0.001
@@ -191,7 +204,8 @@ def test():
     embed_size=100
     is_training=True
     dropout_keep_prob=1#0.5
-    textRNN=TextRCNN(num_classes, learning_rate, batch_size, decay_steps, decay_rate,sequence_length,vocab_size,embed_size,is_training)
+    textRNN=TextRCNN(num_classes, learning_rate, decay_steps, decay_rate,sequence_length,vocab_size,embed_size,is_training,batch_size)
+
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
         for i in range(100):
@@ -200,4 +214,6 @@ def test():
             loss,acc,predict,_=sess.run([textRNN.loss_val,textRNN.accuracy,textRNN.predictions,textRNN.train_op],
                                         feed_dict={textRNN.input_x:input_x,textRNN.input_y:input_y,textRNN.dropout_keep_prob:dropout_keep_prob})
             print("loss:",loss,"acc:",acc,"label:",input_y,"prediction:",predict)
-test()
+
+
+# test()

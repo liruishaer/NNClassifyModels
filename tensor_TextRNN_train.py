@@ -9,8 +9,9 @@ import tensorflow as tf
 import numpy as np
 from tflearn.data_utils import pad_sequences
 import os
-import imdb_data
+import word2vec
 from tensor_TextRNN_model import TextRNN
+import imdb_data
 
 
 # configuration
@@ -44,8 +45,11 @@ def main(_):
     # 2.create session.
     with tf.Session(config=config) as sess:
         # Instantiate Model
-        model = TextRNN(FLAGS.label_size, FLAGS.learning_rate, FLAGS.batch_size, FLAGS.decay_steps, FLAGS.decay_rate,
-                          FLAGS.sentence_len,FLAGS.vocab_size, FLAGS.embed_size, FLAGS.is_training)
+        # model = fastTextB(FLAGS.label_size, FLAGS.learning_rate, FLAGS.batch_size, FLAGS.decay_steps,FLAGS.decay_rate,
+        #                   FLAGS.num_sampled, FLAGS.sentence_len, FLAGS.vocab_size, FLAGS.embed_size,FLAGS.is_training)
+
+        model = TextRNN(FLAGS.label_size, FLAGS.learning_rate, FLAGS.batch_size, FLAGS.decay_steps, FLAGS.decay_rate, FLAGS.sentence_len, FLAGS.vocab_size,
+                        FLAGS.embed_size, FLAGS.is_training)
 
         # Initialize Save
         saver = tf.train.Saver()
@@ -76,10 +80,12 @@ def main(_):
                 #     # print("trainY[start:end]:", trainY[start:end])
                 #     pass
 
+                # curr_loss, curr_acc, _ = sess.run([model.loss_val, model.accuracy, model.train_op],
+                #                          feed_dict={model.sentence: trainX[start:end],model.labels: trainY[start:end]})
+
                 curr_loss, curr_acc, _ = sess.run([model.loss_val, model.accuracy, model.train_op],
-                                        feed_dict={model.input_x: trainX[start:end],
-                                                   model.input_y: trainY[start:end],
-                                                   model.dropout_keep_prob: 0.8})  # curr_acc--->TextCNN.accuracy -->,textRNN.dropout_keep_prob:1
+                                         feed_dict={model.input_x: trainX[start:end], model.input_y:  trainY[start:end],
+                                                   model.dropout_keep_prob: 0.5})
 
                 loss, acc, counter = loss + curr_loss, acc + curr_acc, counter + 1
                 if counter % 5 == 0:
@@ -215,11 +221,14 @@ def do_eval(sess, model, evalX, evalY, batch_size):
     number_examples = len(evalX)
     eval_loss, eval_acc, eval_counter = 0.0, 0.0, 0
     for start, end in zip(range(0, number_examples, batch_size), range(batch_size, number_examples, batch_size)):
+        # curr_eval_loss, curr_eval_acc, = sess.run([model.loss_val, model.accuracy],
+        #                                           feed_dict={model.sentence: evalX[start:end],
+        #                                                      model.labels: evalY[start:end]})
 
-        curr_eval_loss, curr_eval_acc, _ = sess.run([model.loss_val, model.accuracy, model.train_op],
-                                          feed_dict={model.input_x: evalX[start:end],
-                                                     model.input_y: evalY[start:end],
+        curr_eval_loss, curr_eval_acc = sess.run([model.loss_val, model.accuracy],
+                                          feed_dict={model.input_x: evalX[start:end], model.input_y: evalY[start:end],
                                                      model.dropout_keep_prob: 1})
+
         eval_loss, eval_acc, eval_counter = eval_loss + curr_eval_loss, eval_acc + curr_eval_acc, eval_counter + 1
     return eval_loss / float(eval_counter), eval_acc / float(eval_counter)
 

@@ -41,7 +41,7 @@ class TextRNN:
         self.accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32), name="Accuracy") # shape=()
     def instantiate_weights(self):
         """define all weights here"""
-        with tf.name_scope("embedding"): # embedding matrix
+        with tf.name_scope("weights"): # embedding matrix
             self.Embedding = tf.get_variable("Embedding",shape=[self.vocab_size, self.embed_size],initializer=self.initializer) #[vocab_size,embed_size] tf.random_uniform([self.vocab_size, self.embed_size],-1.0,1.0)
             self.W_projection = tf.get_variable("W_projection",shape=[self.hidden_size*2, self.num_classes],initializer=self.initializer) #[embed_size,label_size]
             self.b_projection = tf.get_variable("b_projection",shape=[self.num_classes])       #[label_size]
@@ -77,10 +77,10 @@ class TextRNN:
             #input: `logits` and `labels` must have the same shape `[batch_size, num_classes]`
             #output: A 1-D `Tensor` of length `batch_size` of the same type as `logits` with the softmax cross entropy loss.
             losses = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self.input_y, logits=self.logits);#sigmoid_cross_entropy_with_logits.#losses=tf.nn.softmax_cross_entropy_with_logits(labels=self.input_y,logits=self.logits)
-            #print("1.sparse_softmax_cross_entropy_with_logits.losses:",losses) # shape=(?,)
+            # print("1.sparse_softmax_cross_entropy_with_logits.losses:",losses) # shape=(?,)
             loss=tf.reduce_mean(losses)#print("2.loss.loss:", loss) #shape=()
-            l2_losses = tf.add_n([tf.nn.l2_loss(v) for v in tf.trainable_variables() if 'bias' not in v.name]) * l2_lambda
-            loss=loss+l2_losses
+            # l2_losses = tf.add_n([tf.nn.l2_loss(v) for v in tf.trainable_variables() if 'bias' not in v.name]) * l2_lambda
+            # loss=loss+l2_losses
         return loss
 
     def loss_nce(self,l2_lambda=0.0001): #0.0001-->0.001
@@ -111,7 +111,7 @@ class TextRNN:
 #test started
 def test():
     #below is a function test; if you use this for text classifiction, you need to tranform sentence to indices of vocabulary first. then feed data to the graph.
-    num_classes=10
+    num_classes=2
     learning_rate=0.01
     batch_size=8
     decay_steps=1000
@@ -126,8 +126,9 @@ def test():
         sess.run(tf.global_variables_initializer())
         for i in range(100):
             input_x=np.zeros((batch_size,sequence_length)) #[None, self.sequence_length]
-            input_y=np.array([1,0,1,1,1,2,1,1]) #np.zeros((batch_size),dtype=np.int32) #[None, self.sequence_length]
+            input_y=np.array([1,0,1,1,1,0,1,1]) #np.zeros((batch_size),dtype=np.int32) #[None, self.sequence_length]
             loss,acc,predict,_=sess.run([textRNN.loss_val,textRNN.accuracy,textRNN.predictions,textRNN.train_op],feed_dict={textRNN.input_x:input_x,textRNN.input_y:input_y,textRNN.dropout_keep_prob:dropout_keep_prob})
-            print("loss:",loss,"acc:",acc,"label:",input_y,"prediction:",predict)
+            # print("loss:",loss,"acc:",acc,"label:",input_y,"prediction:",predict)
+            print("loss:",loss,"acc:",acc,"label:",predict)
 
 # test()
