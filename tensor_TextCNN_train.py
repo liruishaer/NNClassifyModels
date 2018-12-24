@@ -87,8 +87,7 @@ def main(_):
                 #     # print("trainY[start:end]:", trainY[start:end])
                 #     pass
 
-                # curr_loss, curr_acc, _ = sess.run([model.loss_val, model.accuracy, model.train_op],
-                #                          feed_dict={model.sentence: trainX[start:end],model.labels: trainY[start:end]})
+
 
                 curr_loss, curr_acc, predict, _, _ = sess.run(
                     [model.loss_val, model.accuracy, model.predictions, model.W_projection, model.train_op],
@@ -229,12 +228,13 @@ def do_eval(sess, model, evalX, evalY, batch_size):
     number_examples = len(evalX)
     eval_loss, eval_acc, eval_counter = 0.0, 0.0, 0
     for start, end in zip(range(0, number_examples, batch_size), range(batch_size, number_examples, batch_size)):
-        # curr_eval_loss, curr_eval_acc, = sess.run([model.loss_val, model.accuracy],
-        #                                           feed_dict={model.sentence: evalX[start:end],
-        #                                                      model.labels: evalY[start:end]})
 
-        curr_eval_loss, curr_eval_acc, predict, _, _ = sess.run(
-            [model.loss_val, model.accuracy, model.predictions, model.W_projection, model.train_op],
+        # curr_eval_loss, curr_eval_acc, predict, _, _ = sess.run(
+        #     [model.loss_val, model.accuracy, model.predictions, model.W_projection, model.train_op],
+        #     feed_dict={model.input_x: evalX[start:end], model.input_y: evalY[start:end],
+        #                model.dropout_keep_prob: DROPOUT_KEEP_PROB})
+
+        curr_eval_loss, curr_eval_acc = sess.run([model.loss_val, model.accuracy],
             feed_dict={model.input_x: evalX[start:end], model.input_y: evalY[start:end],
                        model.dropout_keep_prob: DROPOUT_KEEP_PROB})
 

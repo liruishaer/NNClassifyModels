@@ -14,8 +14,14 @@
 
 ## 2. 数据集及数据处理
 * 数据： IMDB
-* 数据分割：1w, 2w, 3w ...   (未实现)
+* 数据分割：
 
+| train_size | test_size |
+| - | - |
+| 1w | 1w |
+| 2w | 1w |
+| 3w | 1w |
+| 4w | 1w |
 
 ## 3. tensorflow实验记录
 - [x] ** fastText模型 **
@@ -74,3 +80,13 @@ Validation Loss:0.425	Validation Accuracy: 0.824
 | 训练数据大小 | batch_size | loss | acc | 运行时间 |
 | - | - | - | - | - |
 | 2.5w | 400 | - | - | - |
+
+
+## 5. 模型保存
+只保存当前val_acc高于历史最佳acc的模型数据，包含模型权重、图等
+
+
+TODO:
+1. 模型checkpoint保存
+2. 每个epoch结果保存到csv
+3. 只跑GPU
