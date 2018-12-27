@@ -87,6 +87,6 @@ Validation Loss:0.425	Validation Accuracy: 0.824
 
 
 TODO:
-1. 模型checkpoint保存
-2. 每个epoch结果保存到csv
 3. 只跑GPU
+4. tensorflow 部分对预训练向量处理<pad><unk><start><unused>
+5. pytorch张量改为GPU张量，tensorflow也需要做相应处理

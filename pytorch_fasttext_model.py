@@ -17,9 +17,6 @@ class TorchFastText(nn.Module):
         self.maxlen = maxlen
         self.num_classes = num_classes
 
-        # self.embeds = nn.EmbeddingBag(max_features, embedding_dims)
-        # self.linear = nn.Linear(self.embedding_dims, self.num_classes)
-
         self.embeds = nn.Embedding(max_features, embedding_dims)
         self.linear = nn.Linear(self.embedding_dims, self.num_classes)
 

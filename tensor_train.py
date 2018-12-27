@@ -13,11 +13,14 @@ from tensor_fasttext_model import fastTextB
 from tensor_TextCNN_model import TextCNN
 from tensor_TextRNN_model import TextRNN
 from tensor_config import fastText_conf,textCNN_conf,textRNN_conf
+import time
+import csv
+import os,sys
 
 config = tf.ConfigProto()
-config.gpu_options.allow_growth = True   #让TensorFlow在运行过程中动态申请显存，需要多少就申请多少
-MODEL = 'textrnn'   # value:  fasttext   textcnn   textrnn
-TRAIN_DATA_SIZE = 30000   # value:  10000      20000     30000     40000
+config.gpu_options.allow_growth = False   #让TensorFlow在运行过程中动态申请显存，需要多少就申请多少
+MODEL = 'fasttext'   # value:  fasttext   textcnn   textrnn
+TRAIN_DATA_SIZE = 10000   # value:  10000      20000     30000     40000
 
 # 模型相关设置
 model_conf = None
@@ -30,7 +33,7 @@ if MODEL=='fasttext':
     eval_fetches = "[model.loss_val, model.accuracy]"
     train_feed_dict_str = "{model.sentence: trainX[start:end],model.labels: trainY[start:end]}"
     eval_feed_dict_str = "{model.sentence: evalX[start:end],model.labels: evalY[start:end]}"
-    train_fetch_results = "curr_loss, curr_acc, _"
+    file_epoch_result_csv = f'tensor_epoch_results/fastText-tf-gpu-train-{TRAIN_DATA_SIZE}-epoch-{model_conf.num_epochs}-batch-{model_conf.batch_size}.csv'
 elif MODEL=='textcnn':
     model_conf = textCNN_conf
     model = TextCNN(model_conf.filter_sizes, model_conf.num_filters, model_conf.label_size, model_conf.learning_rate,
@@ -39,8 +42,8 @@ elif MODEL=='textcnn':
     train_fetches_str = "{'curr_loss':model.loss_val, 'curr_acc':model.accuracy, 'predict':model.predictions, 'W':model.W_projection, 'train_op':model.train_op}"
     eval_fetches = "[model.loss_val, model.accuracy]"
     train_feed_dict_str = "{model.input_x: trainX[start:end], model.input_y: trainY[start:end],model.dropout_keep_prob: model_conf.dropout_keep_prob}"
-    eval_feed_dict_str = "{model.input_x: evalX[start:end], model.input_y: evalY[start:end],model.dropout_keep_prob: model_conf.dropout_keep_prob}"
-    train_fetch_results = "curr_loss, curr_acc, _, _, _"
+    eval_feed_dict_str = "{model.input_x: evalX[start:end], model.input_y: evalY[start:end],model.dropout_keep_prob: 1}"
+    file_epoch_result_csv = f'tensor_epoch_results/textCNN-tf-gpu-train-{TRAIN_DATA_SIZE}-epoch-{model_conf.num_epochs}-batch-{model_conf.batch_size}.csv'
 elif MODEL=='textrnn':
     model_conf = textRNN_conf
     model = TextRNN(model_conf.label_size, model_conf.learning_rate, model_conf.batch_size, model_conf.decay_steps,
@@ -49,14 +52,23 @@ elif MODEL=='textrnn':
     train_fetches_str = "{'curr_loss':model.loss_val, 'curr_acc':model.accuracy, 'train_op':model.train_op}"
     eval_fetches = "[model.loss_val, model.accuracy]"
     train_feed_dict_str="{model.input_x: trainX[start:end], model.input_y: trainY[start:end],model.dropout_keep_prob: model_conf.dropout_keep_prob}"
-    eval_feed_dict_str="{model.input_x: evalX[start:end], model.input_y: evalY[start:end],model.dropout_keep_prob: model_conf.dropout_keep_prob}"
-    train_fetch_results = "curr_loss, curr_acc, _"
+    eval_feed_dict_str="{model.input_x: evalX[start:end], model.input_y: evalY[start:end],model.dropout_keep_prob: 1}"
+    # file_epoch_result_csv = f'tensor_epoch_results/textRNN-tf-gpu-train-{TRAIN_DATA_SIZE}-epoch-{model_conf.num_epochs}-batch-{model_conf.batch_size}.csv'
+    csv_dir = 'results/tensor_epoch_results/'
+
+
+if not os.path.exists('tensor_epoch_results'):
+    os.mkdir('tensor_epoch_results')
+
 
 # 1.load data(X:list of lint,y:int). 2.create session. 3.feed data. 4.training (5.validation) ,(6.prediction)
 def main(_):
     # 1. load data (already sequence padding)
     trainX, trainY, testX, testY = load_imdb_data(train_size = TRAIN_DATA_SIZE,vocab_size=model_conf.vocab_size,sentence_len=model_conf.sentence_len)
 
+    # 存储模型文件的路径
+    if not os.path.exists(model_conf.ckpt_dir):
+        os.mkdir(model_conf.ckpt_dir)
     # 2.create session.
     with tf.Session(config=config) as sess:
         # Instantiate Model....
@@ -83,39 +95,56 @@ def main(_):
         number_of_training_data = len(trainX)
         best_val_acc = 0.0
 
-        for epoch in range(curr_epoch, model_conf.num_epochs):  # range(start,stop,step_size)
+        csv_content_list = [['loss', 'acc', 'time', 'val_loss', 'val_acc']]  # 记录训练结果，用于输出到csv
+        total_time = 0   # 记录纯训练过程所用时间
+
+        for epoch_id in range(curr_epoch, model_conf.num_epochs):  # range(start,stop,step_size)
             loss, acc, counter = 0.0, 0.0, 0
+            curr_epoch_content_list = []
             for start, end in zip(range(0, number_of_training_data, model_conf.batch_size),
                                   range(model_conf.batch_size, number_of_training_data, model_conf.batch_size)):
-                # if epoch == 0 and counter == 0:
-                #     # print("trainX[start:end]:", trainX[start:end])
-                #     # print("trainY[start:end]:", trainY[start:end])
-                #     pass
 
+                # 训练部分
+                start_time = time.time()
                 result_dict = sess.run(eval(train_fetches_str),feed_dict=eval(train_feed_dict_str))
+                total_time += (time.time() - start_time)
+
+                # 统计数值
                 loss, acc, counter = loss + result_dict['curr_loss'], acc + result_dict['curr_acc'], counter + 1
+
                 # 输出batch在训练集上准确率
                 if counter % 5 == 0:
-                    print("Epoch %d\tBatch %d\tTrain Loss:%.3f\tTrain Accuracy:%.3f" % (
-                    epoch, counter, loss / float(counter), acc / float(counter)))
+                    print("Epoch %d\tBatch %d\tTrain Loss:%.3f\tTrain Accuracy:%.3f" % (epoch_id, counter, loss / float(counter), acc / float(counter)))
+
+            # 训练结果统计
+            curr_epoch_content_list += [loss / float(counter), acc / float(counter), total_time]
 
             # epoch increment
             sess.run(model.epoch_increment)
 
             # 4.validation  每N轮进行一次验证
-            if epoch % model_conf.validate_every == 0:
+            if epoch_id % model_conf.validate_every == 0:
                 eval_loss, eval_acc = do_eval(sess, model, testX, testY, model_conf.batch_size)
-                print("%d/%d Epoch;\tValidation Loss:%.3f\tValidation Accuracy: %.3f" % (epoch, model_conf.num_epochs, eval_loss, eval_acc))
+                print("%d/%d Epoch;\tValidation Loss:%.3f\tValidation Accuracy: %.3f" % (epoch_id, model_conf.num_epochs, eval_loss, eval_acc))
+
+                curr_epoch_content_list += [eval_loss,eval_acc]
+                csv_content_list.append(curr_epoch_content_list)
 
                 # save model to checkpoint
                 if eval_acc > best_val_acc:
                     best_val_acc = eval_acc
-                    save_path = model_conf.ckpt_dir + "model.ckpt"
+                    save_path = model_conf.ckpt_dir + f"model.ckpt-tensor_train_size_{TRAIN_DATA_SIZE}_gpu_epoch_{epoch_id}_batch_{model_conf.batch_size}_acc_{eval_acc:.4f}.pth"
                     saver.save(sess, save_path, global_step=model.epoch_step)  # global_step参数将训练的次数作为后缀加入到模型名字中。
 
-        # 5.最后在测试集上做测试，并报告测试准确率 Test
-        test_loss, test_acc = do_eval(sess, model, testX, testY, model_conf.batch_size)
-        print("最终测试结果：\tLoss:%.3f\tAccuracy: %.3f" % (test_loss, test_acc))
+        # 训练/测试结果写入csv文件
+        with open(file_epoch_result_csv, 'w') as f:
+            w = csv.writer(f)
+            for ls in csv_content_list:
+                w.writerow(ls)
+
+        # # 5.最后在测试集上做测试，并报告测试准确率 Test
+        # test_loss, test_acc = do_eval(sess, model, testX, testY, model_conf.batch_size)
+        # print("最终测试结果：\tLoss:%.3f\tAccuracy: %.3f" % (test_loss, test_acc))
 
 
 def load_imdb_data(train_size, vocab_size,sentence_len):
@@ -214,8 +243,7 @@ def assign_pretrained_word_embedding(sess, vocab_size, embed_size, model):
 
 
     word_embedding = tf.constant(word_embedding_final, dtype=tf.float32)  # convert to tensor
-    t_assign_embedding = tf.assign(model.Embedding,
-                                   word_embedding)  # assign this value to our embedding variables of our model.
+    t_assign_embedding = tf.assign(model.Embedding, word_embedding)  # assign this value to our embedding variables of our model.
     sess.run(t_assign_embedding);
     print("word. exists embedding:", count_exist, " ;word not exist embedding:", count_not_exist)
     print("using pre-trained word emebedding.ended...")

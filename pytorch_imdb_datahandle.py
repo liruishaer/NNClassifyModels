@@ -28,8 +28,9 @@ def add_ngram(sequences, token_indice, ngram_range=2):
 
     return new_sequences
 
-def load_imdb_data(max_feature,ngram_range,sentence_len):
-    def load_data(path='imdb.npz', num_words=None, skip_top=0, seed=113, start_char=1, oov_char=2, index_from=3):
+def load_imdb_data(train_size, vocab_size,ngram_range=1,sentence_len=300):
+    def load_data(train_size, num_words=None, skip_top=0, seed=113, start_char=1, oov_char=2, index_from=3):
+        path = f'imdb_npz_data/imdb_train{train_size}_test10000.npz'
         # 1. load data
         with np.load(path) as f:
             x_train, labels_train = f['x_train'], f['y_train']
@@ -73,11 +74,11 @@ def load_imdb_data(max_feature,ngram_range,sentence_len):
 
         return (x_train, y_train), (x_test, y_test)
 
-    print('MAX_FEATURE:', max_feature)
+    print('VOCAB_SIZE:', vocab_size)
 
     # 1. load original data
     print('loading data...')
-    (trainX, trainY), (testX, testY) = load_data(path=f'imdb_npz_data/imdb_train{10000}_test{10000}.npz',num_words=max_feature)
+    (trainX, trainY), (testX, testY) = load_data(train_size,num_words=vocab_size)
     print('train_data length:', len(trainX))
     print('test_data length:', len(testX))
 
@@ -92,14 +93,14 @@ def load_imdb_data(max_feature,ngram_range,sentence_len):
                 ngram_set.update(set_of_ngram)
 
         # Dictionary mapping n-gram token to a unique integer.
-        # Integer values are greater than max_features in order
+        # Integer values are greater than vocab_size in order
         # to avoid collision with existing features.
-        print('MAX_FEATURE:', max_feature)
-        start_index = max_feature + 1
+        print('VOCAB_SIZE:', vocab_size)
+        start_index = vocab_size + 1
         token_indice = {v: k + start_index for k, v in enumerate(ngram_set)}
         indice_token = {token_indice[k]: k for k in token_indice}
 
-        # max_features is the highest integer that could be found in the dataset.
+        # vocab_size is the highest integer that could be found in the dataset.
         MAX_FEATURE = np.max(list(indice_token.keys())) + 1
 
         # Augmenting x_train and x_test with n-grams features
@@ -119,31 +120,5 @@ def load_imdb_data(max_feature,ngram_range,sentence_len):
     return (trainX, trainY), (testX, testY)
     # return (trainX, to_categorical(trainY)), (testX, to_categorical(testY))
 
-def lazy_load_imdb_data(path = '',ngram_range=1, max_features=20000, sentence_len=400):
-    filename = "-".join(["data", str(ngram_range), str(max_features), str(sentence_len)])
-    filename += ".pkl"
-    print(filename)
-
-    try:
-        with open(filename, "rb") as source:
-            print('lazy loading...')
-            data = pkl.load(source)
-            print("Lazy load successful")
-            return data
-
-    except FileNotFoundError:
-        #         data = fetch_imdb_data(ngram_range, max_features, maxlen)
-        data = load_imdb_data(max_features,ngram_range,sentence_len)
-        # with open(filename, "wb") as target:
-        #     pkl.dump(data, target)
-        return data
 
 
-
-
-
-
-MAX_FEATURE = 10000
-SENTENCE_LEN = 250
-(x_train, y_train), (x_test, y_test) = lazy_load_imdb_data(ngram_range=1, max_features=MAX_FEATURE, sentence_len=SENTENCE_LEN)
-print(x_test.shape)

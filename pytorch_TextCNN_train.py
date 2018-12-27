@@ -26,7 +26,6 @@ MAX_FEATURE = 10000
 SENTENCE_LEN = 300
 EMBEDDING_DIMS = 100
 BATCH_SIZE = 400
-NGRAME_RANGE = 1
 N_FILTERS = 100
 FILTER_SIZES = [3,4,5]
 OUTPUT_DIM = 2
@@ -133,6 +132,10 @@ def train(epoch):
         # zero the parameter gradients
         optimizer.zero_grad()
         # forward + backward + optimize
+
+        print('batch_x.shape:', batch_x.shape)
+        print('batch_y.shape:', batch_y.shape)
+
         outputs = model(batch_x)
 
         # print("outputs.shape:",outputs.shape)

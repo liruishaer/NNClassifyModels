@@ -14,14 +14,15 @@ class FastTextConfig:
     decay_steps = 20000
     decay_rate = 0.8
     num_sampled = 5
-    ckpt_dir = "fastText_tensor_checkpoint/"
     sentence_len = 300
     embed_size = 100
     is_training = True
     num_epochs = 10
     validate_every = 1   # "Validate every validate_every epochs."
     use_embedding=True
-    cache_path = "fastText_tensor_checkpoint/data_cache.pik"
+    ckpt_dir = "models/tensor_FastText_checkpoint/"
+    cache_path = "models/tensor_FastText_checkpoint/data_cache.pik"
+    csv_dir = 'results/tensor_epoch_results/FastText/'
 
 
 class TextCNNConfig:
@@ -32,17 +33,18 @@ class TextCNNConfig:
     decay_steps = 20000
     decay_rate = 0.8
     num_sampled = 5
-    ckpt_dir = "TextCNN_tensor_checkpoint/"
     sentence_len = 300
     embed_size = 100
     is_training = True
     num_epochs = 10
     validate_every = 1
     use_embedding=True
-    cache_path = "TextCNN_tensor_checkpoint/data_cache.pik"
     filter_sizes = [2,3,4]
     num_filters = 128
-    dropout_keep_prob = 0.5
+    dropout_keep_prob = 1
+    cache_path = "TextCNN_tensor_checkpoint/data_cache.pik"
+    ckpt_dir = "TextCNN_tensor_checkpoint/"
+    csv_dir = 'results/tensor_epoch_results/TextCNN/'
 
 
 class TextRNNConfig:
@@ -53,7 +55,6 @@ class TextRNNConfig:
     decay_steps = 20000
     decay_rate = 0.8
     num_sampled = 5
-    ckpt_dir = "TextRNN_tensor_checkpoint/"
     sentence_len = 300
     embed_size = 100
     is_training = True
@@ -61,7 +62,9 @@ class TextRNNConfig:
     validate_every = 1
     use_embedding=True
     dropout_keep_prob = 0.5
-    cache_path = "TextRNN_tensor_checkpoint/data_cache.pik"
+    ckpt_dir = "TextRNN_tensor_checkpoint/"
+    cache_path = "models/TextRNN_tensor_checkpoint/data_cache.pik"
+    csv_dir = 'results/tensor_epoch_results/TextRNN/'
 
 
 fastText_conf = FastTextConfig()

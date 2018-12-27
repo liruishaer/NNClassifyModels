@@ -49,9 +49,11 @@ class TextRNN(nn.Module):
         input = self.embeds(input_sentences)
         input = input.permute(1, 0, 2)
         if batch_size is None:
-            h_0 = Variable(torch.zeros(4, self.batch_size, self.hidden_size).cuda())  # 4 = num_layers*num_directions
+            # h_0 = Variable(torch.zeros(4, self.batch_size, self.hidden_size).cuda())  # 4 = num_layers*num_directions
+            h_0 = Variable(torch.zeros(4, self.batch_size, self.hidden_size))  # 4 = num_layers*num_directions
         else:
-            h_0 = Variable(torch.zeros(4, batch_size, self.hidden_size).cuda())
+            # h_0 = Variable(torch.zeros(4, batch_size, self.hidden_size).cuda())
+            h_0 = Variable(torch.zeros(4, batch_size, self.hidden_size))
         output, h_n = self.rnn(input, h_0)
         # h_n.size() = (4, batch_size, hidden_size)
         h_n = h_n.permute(1, 0, 2)  # h_n.size() = (batch_size, 4, hidden_size)

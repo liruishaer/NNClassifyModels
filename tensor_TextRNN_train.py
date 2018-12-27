@@ -80,12 +80,10 @@ def main(_):
                 #     # print("trainY[start:end]:", trainY[start:end])
                 #     pass
 
-                # curr_loss, curr_acc, _ = sess.run([model.loss_val, model.accuracy, model.train_op],
-                #                          feed_dict={model.sentence: trainX[start:end],model.labels: trainY[start:end]})
-
                 curr_loss, curr_acc, _ = sess.run([model.loss_val, model.accuracy, model.train_op],
-                                         feed_dict={model.input_x: trainX[start:end], model.input_y:  trainY[start:end],
-                                                   model.dropout_keep_prob: 0.5})
+                                         feed_dict={model.input_x: trainX[start:end],
+                                                    model.input_y:  trainY[start:end],
+                                                    model.dropout_keep_prob: 0.5})
 
                 loss, acc, counter = loss + curr_loss, acc + curr_acc, counter + 1
                 if counter % 5 == 0:
@@ -112,6 +110,8 @@ def main(_):
 
 def load_imdb_data():
     def load_data(path='imdb.npz', num_words=None, skip_top=0, seed=113, start_char=1, oov_char=2, index_from=3):
+        path = 'imdb_npz_data/imdb_train10000_test10000.npz'
+
         # 1. load data
         with np.load(path) as f:
             x_train, labels_train = f['x_train'], f['y_train']
